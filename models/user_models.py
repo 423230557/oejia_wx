@@ -73,7 +73,7 @@ class wx_user(models.Model):
         
     @api.one
     def _get_headimg(self):
-        self.headimg= '<img src=%s width="100px" height="100px" />'%self.headimgurl
+        self.headimg= '<img src=%s width="100px" height="100px" />'%(self.headimgurl or '/web/static/src/img/placeholder.png')
         
     #@api.one
     def _get_groups(self):
@@ -157,6 +157,8 @@ class wx_corpuser(models.Model):
                 if v!=False and k in ['mobile', 'email', 'weixinid', 'gender']:
                     arg[k] = v
             arg['department'] = 1
+            if 'weixinid' in arg:
+                arg['weixin_id'] = arg.pop('weixinid')
             corp_client.client.user.create(values['userid'], values['name'], **arg)
         return obj
     
@@ -178,7 +180,10 @@ class wx_corpuser(models.Model):
     def unlink(self):
         _logger.info('wx.corpuser unlink >>> %s'%str(self))
         for obj in self:
-            corp_client.client.user.update(obj.userid)
+            try:
+                corp_client.client.user.delete(obj.userid)
+            except:
+                pass
         ret = super(wx_corpuser, self).unlink()
         return ret
         
@@ -194,11 +199,15 @@ class wx_corpuser(models.Model):
                 flag2 = False
                 if _partner.email:
                     flag2 = self.search( [ ('email', '=', _partner.email) ] ).exists()
-                if not (flag1 or flag2):
-                    ret = self.create({
-                                 'name': obj.name,
-                                 'userid': obj.login,
-                                 'mobile': _partner.mobile,
-                                 'email': _partner.email
-                                 })
-                    _partner.write({'wxcorp_user_id': ret.id})
+                flag3 = self.search( [ ('userid', '=', obj.login) ] ).exists()
+                if not (flag1 or flag2 or flag3):
+                    try:
+                        ret = self.create({
+                                     'name': obj.name,
+                                     'userid': obj.login,
+                                     'mobile': _partner.mobile,
+                                     'email': _partner.email
+                                     })
+                        _partner.write({'wxcorp_user_id': ret.id})
+                    except:
+                        pass

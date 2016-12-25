@@ -19,17 +19,23 @@ class im_chat_message(models.Model):
             wx_channel_id = int(wx_channel_id)
             Corp_Channel_id = Param.get_param('Corp_Channel') or 0
             Corp_Channel_id = int(Corp_Channel_id)
+            Corp_Agent = Param.get_param('Corp_Agent') or 0
+            Corp_Agent = int(Corp_Agent)
             if from_uid:
                 session_channel_id = session.channel_id.id
-                if session_channel_id==wx_channel_id:
+                if session_channel_id and session_channel_id==wx_channel_id:
                     from ..controllers import client
                     client.chat_send(request.db, uuid, message_content)
-                elif session_channel_id==Corp_Channel_id:
+                elif session_channel_id and session_channel_id==Corp_Channel_id:
                     from ..rpc import corp_client
                     corp_client.chat_send(request.db, uuid, message_content)
                 else:
                     session_users = session.user_ids
-                    from_user = [e for e in session_users if e.id==from_uid][0]
+                    from_users = [e for e in session_users if e.id==from_uid]
+                    if from_users:
+                        from_user = from_users[0]
+                    else:
+                        continue
                     for user in session.user_ids:
                         if user.id==from_uid:
                             continue
@@ -62,7 +68,7 @@ class im_chat_message(models.Model):
                                 corp_client.UID_UUID[_key]['last_time'] = datetime.datetime.now()
                                 corp_client.UID_UUID[_key]['uuid'] = uuid
                             try:
-                                corp_client.client.message.send_text(0, _partner.wxcorp_user_id.userid, message_content)
+                                corp_client.client.message.send_text(Corp_Agent, _partner.wxcorp_user_id.userid, message_content)
                             except:
                                 pass
                     
